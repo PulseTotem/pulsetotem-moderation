@@ -1,1 +1,8 @@
-.DS_Store
+.idea
+node_modules
+core-repos-config.json
+scripts/core/connection_infos.json
+t6s-core/*
+package-bak.json
+package-tmp.json
+build
