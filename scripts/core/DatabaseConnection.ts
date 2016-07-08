@@ -7,6 +7,7 @@
 var fs = require('fs');
 var MongoClient = require('mongodb').MongoClient;
 
+
 /**
  * Contains Database Connection information.
  *
@@ -14,7 +15,7 @@ var MongoClient = require('mongodb').MongoClient;
  */
 class DatabaseConnection {
 
-	public static COLLECTION_BLACKLIST : string = "blacklist";
+	public static COLLECTION_BLACKLIST : string = "blacklist-default";
 
 	/**
      * Host.

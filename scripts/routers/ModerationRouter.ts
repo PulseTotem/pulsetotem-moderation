@@ -14,19 +14,39 @@ class ModerationRouter extends RouterItf {
     buildRouter() {
         var self = this;
 
-        this.router.post('/', function (req : any, res : any) { self.moderateData(req, res); });
+        var connection = DatabaseConnection.getConnection();
+
+        if (connection == null) {
+            Logger.error("The service is not connected to a DB.");
+        }
+
+        // The content field will contain data concerning words, username or id blacklisted.
+        // We need to index this field in order to use search text with it.
+        connection.collection(DatabaseConnection.COLLECTION_BLACKLIST).createIndex({content: "text"},{unique: true});
+
+        this.router.post('/text', function (req : any, res : any) { self.moderateText(req, res); });
     }
 
-    moderateData(req : any, res : any) {
+    moderateText(req : any, res : any) {
         var connection = DatabaseConnection.getConnection();
 
         if (connection == null) {
             Logger.error("The service is not connected to a DB.");
             res.status(500).send({'error': 'DB not connected.'});
         } else {
-            var stringToModerate : string = req.body;
+            var stringToModerate : string = req.body.data;
 
-            connection.collection(DatabaseConnection.COLLECTION_BLACKLIST).find({ $text: { $search: stringToModerate } }, function (err, result) {
+            var request = {
+                $text: {
+                    $search: stringToModerate,
+                    $language: "fr"
+                },
+                'content-type': 'word'
+            };
+
+            Logger.debug("Request : "+JSON.stringify(request));
+
+            connection.collection(DatabaseConnection.COLLECTION_BLACKLIST).find(request).toArray(function (err, result) {
                 if (result.length > 0) {
                     res.status(403).send({'error': 'The phrase should be moderate.'});
                 } else {
