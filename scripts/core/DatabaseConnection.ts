@@ -15,7 +15,7 @@ var MongoClient = require('mongodb').MongoClient;
  */
 class DatabaseConnection {
 
-	public static COLLECTION_BLACKLIST : string = "blacklist-default";
+	public static DEFAULT_COLLECTION : string = "default";
 
 	/**
      * Host.

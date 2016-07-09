@@ -25,70 +25,94 @@ class CRUDRouter extends RouterItf {
         // The content field will contain data concerning words, username or id blacklisted.
         // We need to index this field in order to use search text with it.
         // Unicity is managed on plural forms of the content with uppercase or not.
-        connection.collection(DatabaseConnection.COLLECTION_BLACKLIST).createIndex({content: "text"},{unique:true});
+        connection.collection(DatabaseConnection.DEFAULT_COLLECTION).createIndex({content: "text"},{unique:true});
 
-        this.router.get('/blacklist/:type', function (req : any, res : any) { self.retrieveBlacklistedContent(req, res); });
-        this.router.post('/blacklist/:type', function (req : any, res : any) { self.insertBlacklistedContent(req, res); });
-        this.router.delete('/blacklist', function (req : any, res : any) { self.deleteBlacklistedContent(req, res); });
+        this.router.get('/', function (req : any, res : any) { self.retrieveContent(req, res); });
+        this.router.get('/:type', function (req : any, res : any) { self.retrieveContent(req, res); });
+        this.router.get('/:type/:contenttype', function (req : any, res : any) { self.retrieveContent(req, res); });
+        this.router.post('/:type/:contenttype', function (req : any, res : any) { self.insertContent(req, res); });
+        this.router.delete('/', function (req : any, res : any) { self.deleteContent(req, res); });
     }
 
-    retrieveBlacklistedContent(req : any, res : any) {
+    retrieveContent(req : any, res : any) {
         var connection = DatabaseConnection.getConnection();
+
+        var request = null;
+        if (req.params.type || req.params.contenttype) {
+            request = {};
+
+            if (req.params.type) {
+                request['type'] = req.params.type;
+            }
+
+            if (req.params.contenttype) {
+                request['content-type'] = req.params.contenttype;
+            }
+        }
 
         if (connection == null) {
             Logger.error("The service is not connected to a DB.");
             res.status(500).send({'error': 'DB not connected.'});
         } else {
-            connection.collection(DatabaseConnection.COLLECTION_BLACKLIST).find({'content-type':req.params.type}).toArray(function(err, result) {
+            connection.collection(DatabaseConnection.DEFAULT_COLLECTION).find(request).toArray(function(err, result) {
                 if (err != null) {
-                    Logger.error("Error while getting data from blacklist");
+                    Logger.error("Error while getting data from moderation list");
                     Logger.error(err);
 
-                    res.status(500).send({'error': 'Error while getting data from blacklist'});
+                    res.status(500).send({'error': 'Error while getting data from moderation list'});
                 } else {
-                    Logger.debug("Retrieve data from blacklist");
+                    Logger.debug("Retrieve data from moderation list");
                     res.status(200).send(result);
                 }
             });
         }
     }
 
-    insertBlacklistedContent(req : any, res : any) {
+    insertContent(req : any, res : any) {
         var connection = DatabaseConnection.getConnection();
 
-        if (connection == null) {
-            Logger.error("The service is not connected to a DB.");
-            res.status(500).send({'error': 'DB not connected.'});
+        if (req.params.type != 'blacklist' && req.params.type != 'whitelist') {
+            res.status(403).send({'error':'Only type value blacklist or whitelist is authorized.'});
+        } else if (req.params.contenttype != 'id' && req.params.contenttype != 'username' && req.params.contenttype != 'word') {
+            res.status(403).send({'error': 'Only contenttype value id, username or word is authorized.'});
+        } else if (req.params.type == 'whitelist' && req.params.contenttype == 'word') {
+            res.status(403).send({'error': 'Whitelisted word are not authorized.'});
         } else {
-            var word : any = req.body.word;
-            var language : any = req.body.language;
 
-            if (typeof(word) === "string") {
-                var data = {
-                    'type': 'blacklist',
-                    'content-type': req.params.type,
-                    'language': language, // language is mandatory in order to index correctly the words
-                    'content': word
-                };
-
-                connection.collection(DatabaseConnection.COLLECTION_BLACKLIST).insert(data, function (err,result) {
-                    if (err != null) {
-                        Logger.error("Error while inserting data in blacklist: "+JSON.stringify(data));
-                        Logger.debug(err);
-                        res.status(500).send({'error': 'Error while inserting data in blacklist'});
-                    } else {
-                        Logger.debug("Insert data in blacklist");
-                        res.status(200).send({'success': 'ok'});
-                    }
-                });
+            if (connection == null) {
+                Logger.error("The service is not connected to a DB.");
+                res.status(500).send({'error': 'DB not connected.'});
             } else {
-                Logger.info("Trial to insert data with an incorrect type (not string): "+JSON.stringify(word));
-                res.status(403).send({'error': 'The word you post is not a string.'});
+                var content : any = req.body.content;
+                var language : any = req.body.language;
+
+                if (typeof(content) === "string") {
+                    var data = {
+                        'type': req.params.type,
+                        'content-type': req.params.contenttype,
+                        'language': language, // language is mandatory in order to index correctly the words
+                        'content': content
+                    };
+
+                    connection.collection(DatabaseConnection.DEFAULT_COLLECTION).insert(data, function (err,result) {
+                        if (err != null) {
+                            Logger.error("Error while inserting data in list: "+JSON.stringify(data));
+                            Logger.debug(err);
+                            res.status(500).send({'error': 'Error while inserting data in list'});
+                        } else {
+                            Logger.debug("Insert data in list");
+                            res.status(200).send({'success': 'ok'});
+                        }
+                    });
+                } else {
+                    Logger.info("Trial to insert data with an incorrect type (not string): "+JSON.stringify(content));
+                    res.status(403).send({'error': 'The content you post must be a string.'});
+                }
             }
         }
     }
 
-    deleteBlacklistedContent(req : any, res : any) {
+    deleteContent(req : any, res : any) {
         var connection = DatabaseConnection.getConnection();
 
         if (connection == null) {
@@ -101,7 +125,7 @@ class CRUDRouter extends RouterItf {
                 _id: contentId
             };
 
-            connection.collection(DatabaseConnection.COLLECTION_BLACKLIST).removeOne(request, function (err,result) {
+            connection.collection(DatabaseConnection.DEFAULT_COLLECTION).removeOne(request, function (err,result) {
                 if (err != null) {
                     Logger.error("Error while removing data from blacklist");
                     Logger.debug(err);
