@@ -97,6 +97,7 @@ class ModerationRouter extends RouterItf {
                     if (result.length > 0) {
                         Logger.info("Detect blacklisted content");
                         Logger.info("Blacklist entry: "+JSON.stringify(result[0]));
+                        Logger.info("Original content: "+JSON.stringify(req.body));
                         res.status(403).send({'error':'Blacklisted content'});
                     } else {
                         res.status(200).send({'success':'ok'});

@@ -86,6 +86,10 @@ class CRUDRouter extends RouterItf {
                 var content : any = req.body.content;
                 var language : any = req.body.language;
 
+                if (!language) {
+                    language = "fr";
+                }
+
                 if (typeof(content) === "string") {
                     var data = {
                         'type': req.params.type,
